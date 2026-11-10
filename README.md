@@ -16,6 +16,25 @@ except the one service.
   static look is only written when it changes. Nothing is ever saved to a device: remove the tool
   and your hardware falls back to its own settings once it loses power.
 
+## How it works
+
+```mermaid
+flowchart LR
+    SW["Theme switcher<br/>UltraLightRgb.Switch"] -->|theme state file| L
+    CFG["devices.json<br/>admin-only"] --> L
+    S["Sensors<br/>LibreHardwareMonitorLib, CPU and GPU only"] -->|once per second| L["Main loop<br/>UltraLightRgb.exe --service<br/>scheduled task as SYSTEM"]
+    L --> R["Renderer<br/>320x240 frames"]
+    R -->|HID| LCD["AIO LCD"]
+    L --> O["LED outputs<br/>one thread each, smoothed colours"]
+    O -->|HID| A["ASUS AURA USB mainboard"]
+    O -->|NVAPI I2C| G["MSI GPU"]
+    O -->|TCP, local machine only| P["OpenRGB SDK server"]
+```
+
+One process at below-normal priority does all of it. Each LED output runs on its own thread: if
+its device is missing, it logs the error and retries every 30 seconds without holding up the LCD
+or the other outputs. Hardware that turns out to be unsupported is switched off for good.
+
 ## Footprint
 
 Measured on a Ryzen 7 9800X3D (16 threads) with LCD, mainboard and GPU lighting active, averaged
