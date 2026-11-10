@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <AssemblyName>UltraLightRgb.Switch</AssemblyName>
+    <RootNamespace>UltraLightRgb.Switch</RootNamespace>
+    <Version>0.1.0</Version>
+    <Product>Ultra Light RGB Control</Product>
+    <Copyright>Copyright (C) 2026 Blackwellcode, GPL-3.0-or-later</Copyright>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <!-- the previews are the real themes, not pictures of them -->
+  <ItemGroup>
+    <Compile Include="..\UltraLightRgb\Themes\*.cs" Link="Themes\%(Filename)%(Extension)" />
+    <Compile Include="..\UltraLightRgb\Renderer.cs" Link="Renderer.cs" />
+  </ItemGroup>
+
+</Project>

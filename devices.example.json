@@ -1,0 +1,21 @@
+// Ultra Light RGB Control: copy to %ProgramData%\UltraLightRgb\devices.json (needs admin rights)
+// and restart the "UltraLightRgb" scheduled task. Without this file the defaults below apply,
+// minus the OpenRGB entry. Comments and trailing commas are allowed; unknown keys are an error.
+{
+  // false: LEDs only, no LCD
+  "lcd": true,
+
+  "outputs": [
+    // ASUS AURA USB controller (0B05:19AF): one ARGB header (counted from 0) plus the board's own LEDs.
+    // Verified on a ROG STRIX B650E-F; other boards may map channels differently (see docs/devices.md).
+    { "driver": "aura", "source": "cpu", "header": 0, "board": true },
+
+    // MSI RTX 5070 Gaming Trio over NVAPI. Any other card is refused, writes stay off.
+    { "driver": "msi-gpu", "source": "gpu" },
+
+    // Everything OpenRGB supports, through its SDK server (OpenRGB must run with the server on).
+    // match: part of the controller name ("*" = all), see: UltraLightRgb.exe --openrgb-list
+    // Do not let OpenRGB and this tool drive the same device.
+    { "driver": "openrgb", "source": "cpu", "host": "127.0.0.1", "port": 6742, "match": "*", "animate": false },
+  ],
+}
