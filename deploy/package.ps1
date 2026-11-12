@@ -25,6 +25,11 @@ Copy-Item (Join-Path $root 'README.md'), (Join-Path $root 'LICENSE'), (Join-Path
 Copy-Item (Join-Path $root 'licenses') $stage -Recurse
 
 Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip
+$hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+# published next to the zip; same format as sha256sum: "<hash>  <file name>"
+$sums = Join-Path $root 'dist\SHA256SUMS'
+Set-Content -LiteralPath $sums -Value ('{0}  {1}' -f $hash, (Split-Path $zip -Leaf)) -Encoding ASCII
 "zip=$zip"
 "bytes=$((Get-Item $zip).Length)"
-"sha256=$((Get-FileHash $zip -Algorithm SHA256).Hash)"
+"sha256=$hash"
+"sums=$sums"

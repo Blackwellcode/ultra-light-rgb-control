@@ -66,17 +66,40 @@ Details, test notes and how to add a device: [docs/devices.md](docs/devices.md).
 
 ## Install
 
-1. Download `UltraLightRgb-<version>-win-x64.zip` from [Releases](../../releases) and extract it.
+1. Download `UltraLightRgb-<version>-win-x64.zip` and `SHA256SUMS` from [Releases](../../releases).
+   Check the hash, then extract the zip:
+
+   ```powershell
+   (Get-FileHash .\UltraLightRgb-<version>-win-x64.zip -Algorithm SHA256).Hash   # must match SHA256SUMS
+   ```
+
 2. Open PowerShell **as administrator** in the extracted folder and run:
 
    ```powershell
    powershell -ExecutionPolicy Bypass -File .\install.ps1
+   powershell -ExecutionPolicy Bypass -File .\install.ps1 -WhatIf   # only show what would change
    ```
 
 This copies the app to `C:\Program Files\UltraLightRgb`, registers the scheduled task
 `UltraLightRgb` (runs as SYSTEM at boot, needed for the CPU sensor) and adds
-**Ultra Light RGB Control** to the Start menu. To remove it: `.\uninstall.ps1` (add `-RemoveData` to
-also delete configuration and logs).
+**Ultra Light RGB Control** to the Start menu. The script prints `INSTALL_OK` or
+`INSTALL_FAILED: <reason>` and exits with code 1 on failure, also with `-ResultFile <log>`.
+
+If `C:\ProgramData\UltraLightRgb` already exists, it must belong to SYSTEM or Administrators and
+must not contain junctions or symbolic links; otherwise the installer stops, because a folder
+prepared by another user could redirect what the SYSTEM service writes. Coming from the
+predecessor TrLcd: add `-MigrateTrLcd` to remove its task and take over its theme.
+
+To remove it: `.\uninstall.ps1` (add `-RemoveData` to also delete configuration and logs).
+
+## Update
+
+Run `install.ps1` from the new release, as above; configuration, theme and logs in
+`C:\ProgramData\UltraLightRgb` stay. The update is copied to `C:\Program Files\UltraLightRgb.new`
+first, then the running version is stopped and moved to `UltraLightRgb.bak`, and the new one takes
+its place. Once the task runs again, the `.bak` folder is deleted. If any step fails, the installer
+moves the previous version back, starts its task again and prints `ROLLBACK_OK`. Changes are listed
+in [CHANGELOG.md](CHANGELOG.md).
 
 ## Configuration
 
@@ -125,7 +148,7 @@ Stop the scheduled task before running the tool by hand, or both will write to t
 ```powershell
 dotnet build UltraLightRgb.sln -c Release
 dotnet test UltraLightRgb.sln -c Release
-.\deploy\package.ps1        # release zip in dist\
+.\deploy\package.ps1        # release zip and SHA256SUMS in dist\
 ```
 
 ## Licence

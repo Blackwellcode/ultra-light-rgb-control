@@ -1,0 +1,33 @@
+# Changelog
+
+All notable changes to this project are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
+
+## [Unreleased]
+
+### Security
+- `install.ps1` refuses an existing `C:\ProgramData\UltraLightRgb` that is not owned by SYSTEM or Administrators or that contains a junction or symbolic link, and sets Administrators as owner of the whole tree (`icacls /setowner`).
+- The service reads at most 64 bytes of `state\theme.txt`, a file every user may write.
+- `System.Drawing.Common` is pinned to exactly 8.0.34 instead of `8.0.*`.
+- Releases ship a `SHA256SUMS` file next to the zip.
+
+### Changed
+- Updates are staged in `UltraLightRgb.new`; the running version is kept in `UltraLightRgb.bak` until the new task runs. On any failure the installer moves the previous version back and starts its task again.
+- `install.ps1` exits with code 1 on failure also when `-ResultFile` is given, and supports `-WhatIf` / `-Confirm`.
+- Taking over the predecessor TrLcd (remove its task, copy its theme) only happens with `-MigrateTrLcd`.
+- `uninstall.ps1` also removes `.new` / `.bak` leftovers of an interrupted update.
+
+### Fixed
+- Unhandled exceptions on any thread are written to `logs\service.log` before the process ends.
+- A lasting error on the theme file is logged once per minute instead of once per second.
+
+### Tests
+- Example configuration test no longer depends on where the test binary is built.
+- New tests: theme state file (BOMs, unknown ids, 64-byte limit), log throttling, `TempLed` (first reading, smoothing, missing reading, unsupported hardware); theme LED colours are now asserted.
+
+### CI
+- GitHub Actions pinned to commit SHAs; `SHA256SUMS` uploaded with the build artifact.
+
+## [0.1.0] - 2026-11-10
+
+### Added
+- Initial release: CPU/GPU temperature on the LCD and on RGB lighting (ASUS AURA headers, verified MSI GPU, OpenRGB), nine themes, theme switcher, SYSTEM scheduled task, install/uninstall scripts.
