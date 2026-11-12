@@ -247,10 +247,21 @@ public static class ThemeCatalog
     }
 
     /// <summary>Default when nothing is saved; anything unknown counts as nothing saved.</summary>
-    public static string ReadState()
+    public static string ReadState() => ReadState(StatePath);
+
+    /// <summary>Upper bound for the state file: every user may write it, SYSTEM reads it.</summary>
+    internal const int MaxStateBytes = 64;
+
+    internal static string ReadState(string path)
     {
-        if (!File.Exists(StatePath)) return DefaultId;
-        string id = File.ReadAllText(StatePath).Trim();
+        if (!File.Exists(path)) return DefaultId;
+        var buf = new byte[MaxStateBytes];
+        int n;
+        using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+            n = fs.ReadAtLeast(buf, buf.Length, throwOnEndOfStream: false);
+        // StreamReader honours a UTF-8 or UTF-16 byte order mark, like File.ReadAllText did
+        using var reader = new StreamReader(new MemoryStream(buf, 0, n), System.Text.Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        string id = reader.ReadToEnd().Trim();
         return Exists(id) ? id : DefaultId;
     }
 

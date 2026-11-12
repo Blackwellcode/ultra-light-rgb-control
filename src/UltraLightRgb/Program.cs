@@ -37,6 +37,10 @@ internal static class Program
 
     private static int Main(string[] args)
     {
+        // the service has no console: without this a crash on any thread would leave no trace
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            Log.Write($"Unhandled exception{(e.IsTerminating ? ", terminating" : "")}: {e.ExceptionObject}");
+
         if (args.Contains("--help") || args.Contains("-h") || args.Contains("/?"))
         {
             Console.WriteLine(Usage);
@@ -234,6 +238,8 @@ internal static class Program
     /// <summary>Notices a new theme.txt through its timestamp, so polling costs no file read.</summary>
     private sealed class ThemeWatch
     {
+        private const long RepeatLogMs = 60_000; // a lasting error is polled every second
+        private readonly LogThrottle _errors = new(RepeatLogMs);
         private DateTime _stamp = DateTime.MinValue;
 
         public bool Poll(out string id)
@@ -245,12 +251,14 @@ internal static class Program
                 if (stamp == _stamp) return false;
                 id = ThemeCatalog.ReadState();
                 _stamp = stamp;
+                _errors.Reset();
                 return true;
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException)
             {
                 // the switcher may be replacing the file right now: the next poll picks it up
-                Log.Write($"Theme file: {e.GetType().Name}: {e.Message}");
+                string msg = $"Theme file: {e.GetType().Name}: {e.Message}";
+                if (_errors.ShouldLog(msg, Environment.TickCount64)) Log.Write(msg);
                 return false;
             }
         }
