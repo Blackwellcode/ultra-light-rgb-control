@@ -20,9 +20,12 @@ Start-Sleep -Seconds 1
 Remove-Item (Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs\Ultra Light RGB Control.lnk') -ErrorAction SilentlyContinue
 
 $target = Join-Path $env:ProgramFiles 'UltraLightRgb'
-if (Test-Path $target) {
-    Remove-Item $target -Recurse -Force
-    "Removed $target"
+# .new / .bak are leftovers of an interrupted update (see install.ps1)
+foreach ($dir in $target, "$target.new", "$target.bak") {
+    if (Test-Path -LiteralPath $dir) {
+        Remove-Item -LiteralPath $dir -Recurse -Force
+        "Removed $dir"
+    }
 }
 
 $data = Join-Path $env:ProgramData 'UltraLightRgb'
