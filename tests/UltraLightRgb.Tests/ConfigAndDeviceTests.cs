@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 
 namespace UltraLightRgb.Tests;
@@ -42,14 +43,27 @@ public class ConfigTests
         Assert.Throws<JsonException>(() => AppConfig.Parse("""{ "outputs": [ { "driver": "aura", "headr": 1 } ] }"""));
     }
 
+    /// <summary>
+    /// Repository root, found through its marker file UltraLightRgb.sln. Starts at this source
+    /// file, not at the test binary, which may be built anywhere (--artifacts-path).
+    /// </summary>
+    private static string RepoRoot([CallerFilePath] string sourceFile = "")
+    {
+        foreach (string start in new[] { Path.GetDirectoryName(sourceFile) ?? "", AppContext.BaseDirectory })
+        {
+            for (var dir = string.IsNullOrEmpty(start) ? null : new DirectoryInfo(start); dir is not null; dir = dir.Parent)
+                if (File.Exists(Path.Combine(dir.FullName, "UltraLightRgb.sln"))) return dir.FullName;
+        }
+        throw new DirectoryNotFoundException($"UltraLightRgb.sln not found above {sourceFile} or {AppContext.BaseDirectory}");
+    }
+
     [Fact]
     public void Shipped_example_configuration_is_valid()
     {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "devices.example.json"))) dir = dir.Parent;
-        Assert.NotNull(dir);
+        string example = Path.Combine(RepoRoot(), "devices.example.json");
+        Assert.True(File.Exists(example), example);
 
-        var cfg = AppConfig.Parse(File.ReadAllText(Path.Combine(dir!.FullName, "devices.example.json")));
+        var cfg = AppConfig.Parse(File.ReadAllText(example));
         Assert.Equal(["aura", "msi-gpu", "openrgb"], cfg.Outputs.Select(o => o.Driver));
     }
 
@@ -112,8 +126,14 @@ public class ThemeTests
             using var snap = r.Snapshot();
             Assert.Equal(Scene.W, snap.Width);
             foreach (var src in new[] { LedSource.Cpu, LedSource.Gpu })
-                foreach (float t in new[] { 25f, 60f, 95f })
-                    _ = r.Led(src, t);
+            {
+                // the LEDs follow the temperature: a hot reading never looks like a cold one
+                var cold = r.Led(src, 25f);
+                var warm = r.Led(src, 60f);
+                var hot = r.Led(src, 95f);
+                Assert.NotEqual(cold, hot);
+                Assert.True(cold.Flow >= 0 && warm.Flow >= 0 && hot.Flow >= 0, $"{id}/{src}: negative flow");
+            }
         }
     }
 
