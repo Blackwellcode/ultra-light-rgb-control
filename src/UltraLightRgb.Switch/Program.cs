@@ -56,6 +56,8 @@ internal sealed class SwitchForm : Form
     public SwitchForm()
     {
         Text = Program.Title;
+        // window and taskbar show the application icon instead of the generic WinForms one
+        Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
         BackColor = Back;
         FormBorderStyle = FormBorderStyle.FixedSingle;
         MaximizeBox = false;

@@ -1,5 +1,7 @@
 # Ultra Light RGB Control
 
+<img src="docs/images/icon.png" alt="" width="96" align="right">
+
 CPU and GPU temperature on your AIO's LCD and on your RGB lighting, from a single background process
 for Windows. No vendor suite, no tray icon, no account, no telemetry, nothing that stays in memory
 except the one service.
