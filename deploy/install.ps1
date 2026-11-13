@@ -11,12 +11,15 @@
 # and its task is started again.
 [CmdletBinding(SupportsShouldProcess)]
 param(
-    [string]$Source = (Join-Path $PSScriptRoot 'app'),
+    [string]$Source,
     [string]$ResultFile,
     [switch]$Bench,
     [switch]$MigrateTrLcd
 )
 $ErrorActionPreference = 'Stop'
+# Windows PowerShell 5.1 leaves $PSScriptRoot empty in parameter defaults of a script with
+# [CmdletBinding()], so the default is resolved here instead
+if (-not $Source) { $Source = Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) 'app' }
 
 $SidSystem = 'S-1-5-18'
 $SidAdmins = 'S-1-5-32-544'
