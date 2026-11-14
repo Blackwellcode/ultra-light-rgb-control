@@ -121,7 +121,7 @@ public sealed class HologrammTheme : ITheme
         LoadColumn(g, Scene.W - 28, s.GpuLoad, accent);
         s.Text(Scene.Pct(s.Now.CpuLoad), _tiny, accent, 12, 216);
         s.Text(Scene.Pct(s.Now.GpuLoad), _tiny, accent, Scene.W - 12, 216, StringAlignment.Far);
-        s.Text(s.Hottest >= Pal.AlarmC ? "WARNUNG" : "SYSTEM STABIL", _tiny, accent, Cx, 224, StringAlignment.Center);
+        s.Text(s.Hottest >= Pal.AlarmC ? "WARNING" : "SYSTEM STABLE", _tiny, accent, Cx, 224, StringAlignment.Center);
 
         // scan beam
         float y = s.Time * 46 % (Scene.H + 40) - 20;
@@ -241,7 +241,7 @@ public sealed class PhosphorTheme : ITheme
         var smoothing = g.SmoothingMode;
         g.SmoothingMode = SmoothingMode.None;
 
-        s.Text("TRLCD://SYSMON", _text, Green, 8, 6);
+        s.Text("ULRGB://SYSMON", _text, Green, 8, 6);
         s.Text(DateTime.Now.ToString("HH:mm:ss"), _text, Dim, Scene.W - 8, 6, StringAlignment.Far);
         s.Text("CPU", _small, Dim, 12, 28);
         s.Text("GPU", _small, Dim, 172, 28);
@@ -263,7 +263,7 @@ public sealed class PhosphorTheme : ITheme
         }
 
         string cursor = (int)(s.Time * 2) % 2 == 0 ? "_" : " ";
-        s.Text(s.Hottest >= Pal.AlarmC ? $"> WARNUNG: UEBERHITZUNG{cursor}" : $"> ALLE SYSTEME NOMINAL{cursor}", _small, Green, 8, 216);
+        s.Text(s.Hottest >= Pal.AlarmC ? $"> WARNING: OVERHEATING{cursor}" : $"> ALL SYSTEMS NOMINAL{cursor}", _small, Green, 8, 216);
 
         g.SmoothingMode = smoothing;
         PostProcess(s);

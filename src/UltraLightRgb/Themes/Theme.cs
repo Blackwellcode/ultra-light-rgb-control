@@ -258,6 +258,9 @@ public static class ThemeCatalog
         ("waermeband", "Heat Band", () => new WaermebandTheme()),
         ("split", "Split", () => new SplitTheme()),
         ("nachtwache", "Night Watch", () => new NachtwacheTheme()),
+        ("uhr", "Clock", () => new UhrTheme()),
+        ("minimal", "Minimal", () => new MinimalTheme()),
+        ("system", "System", () => new SystemTheme()),
     ];
 
     public static ITheme Create(string id)
@@ -307,10 +310,26 @@ public static class ThemeCatalog
     public static Readings Synthetic(int i)
     {
         float ramp = Math.Clamp((i - 110) / 70f, 0, 1);
+        float pump = 3100 + 15 * MathF.Sin(i / 3f);
         return new Readings(
             44 + 27 * ramp + (1 + 3 * ramp) * MathF.Sin(i / 9f) + MathF.Sin(i / 2.3f),
             6 + 56 * ramp + 11 * ramp * MathF.Sin(i / 5f) + 4 * MathF.Sin(i / 1.3f),
             41 + 23 * ramp + 1.2f * MathF.Sin(i / 17f),
-            7 + 81 * ramp + 8 * ramp * MathF.Sin(i / 7f) + 3 * MathF.Sin(i / 1.7f));
+            7 + 81 * ramp + 8 * ramp * MathF.Sin(i / 7f) + 3 * MathF.Sin(i / 1.7f))
+        {
+            RamLoad = 48 + 9 * ramp,
+            RamUsedGb = 15.2f + 2.8f * ramp,
+            RamTotalGb = 31.6f,
+            VramUsedMb = 2400 + 5600 * ramp,
+            VramTotalMb = 12227,
+            PumpRpm = pump,
+            Fans =
+            [
+                new("Fan #2", 950 + 420 * ramp),
+                new("Fan #7", pump),
+                new("GPU Fan 1", 1100 + 900 * ramp),
+                new("GPU Fan 2", 1120 + 900 * ramp),
+            ],
+        };
     }
 }

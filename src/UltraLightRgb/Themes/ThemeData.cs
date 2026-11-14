@@ -51,7 +51,7 @@ public sealed class WaermebandTheme : ITheme
         Band(s, 121, s.GpuTemps, s.GpuLoads, _fadeBottom, "GPU", s.Now.GpuTemp, s.Now.GpuLoad);
         g.SmoothingMode = smoothing;
         s.Text("−5 MIN", _tiny, Color.FromArgb(124, 130, 148), 10, 104);
-        s.Text("JETZT", _tiny, Color.White, Scene.W - 6, 5, StringAlignment.Far);
+        s.Text("NOW", _tiny, Color.White, Scene.W - 6, 5, StringAlignment.Far);
     }
 
     public void Dispose()
