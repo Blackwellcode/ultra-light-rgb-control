@@ -4,6 +4,8 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-14
+
 ### Added
 - User settings in `state\settings.json`: brightness per LED group (AURA header, board, GPU, OpenRGB; 0 = off), alarm threshold and colour scale. The file is capped at 4 KB, links are refused, unknown keys or out-of-range values reject the whole file. Changes apply within a second.
 - Night window (`night` in the settings): LEDs at a reduced brightness and, optionally, a calm theme between two times; the window may span midnight.
@@ -36,6 +38,7 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 ### Tests
 - Example configuration test no longer depends on where the test binary is built.
 - New tests: theme state file (BOMs, unknown ids, 64-byte limit), log throttling, `TempLed` (first reading, smoothing, missing reading, unsupported hardware); theme LED colours are now asserted.
+- New tests for the 0.2.0 features: user settings (limits, unknown keys, size cap, links), palette scale and alarm, LED dimming, status file and its alive gate, night window and load automatic, sensor mapping, switcher model. 129 tests in total; the symbolic-link test runs only where links may be created (CI, admin, Developer Mode).
 
 ### CI
 - GitHub Actions pinned to commit SHAs; `SHA256SUMS` uploaded with the build artifact.

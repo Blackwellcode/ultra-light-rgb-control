@@ -12,7 +12,7 @@
     <InvariantGlobalization>true</InvariantGlobalization>
     <AssemblyName>UltraLightRgb.Switch</AssemblyName>
     <RootNamespace>UltraLightRgb.Switch</RootNamespace>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Product>Ultra Light RGB Control</Product>
     <Copyright>Copyright (C) 2026 Blackwell Code, GPL-3.0-or-later</Copyright>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>

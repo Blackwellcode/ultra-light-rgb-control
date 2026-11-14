@@ -9,9 +9,17 @@ Anything else goes through OpenRGB, which maintains support for a large number o
 | :--- | :--- | :--- | :--- |
 | LCD of a Thermalright AIO ("USBDISPLAY", 320x240 panel) | USB HID `0416:5302`, screen code PM 51 | built in, `"lcd": true` | all themes, frame rate and CPU load per theme |
 | ASUS AURA USB controller on a ROG STRIX B650E-F GAMING WIFI, firmware `AULA3-AR32-0309` | USB HID `0B05:19AF` | `aura` | header 0 (cooler and fan chain) and board LEDs, starting from the power-on rainbow |
-| MSI GeForce RTX 5070 Gaming Trio | PCI `10DE:2F04`, subsystem `1462:5322` | `msi-gpu` | static colours and theme changes |
+| MSI GeForce RTX 5070 Gaming Trio | PCI `10DE:2F04`, subsystem `1462:5322` | `msi-gpu` | static colours, theme changes, brightness down to off |
+| Nuvoton NCT6799D Super I/O on the same board (read only) | through LibreHardwareMonitor | sensors | fan speeds; the AIO pump of the test system is on `Fan #7` (about 3100 RPM) |
 
 Not yet verified on any device: standby and resume, unplugging during operation.
+
+### Finding the pump header
+
+Run `UltraLightRgb.exe --sensors-all` from an elevated PowerShell. The `<SuperIO>` block lists every
+board fan header with its speed; headers without a fan read 0. An AIO pump usually runs at a fixed,
+high speed (around 2500-3500 RPM) while case fans follow the temperature. Pick that header on the
+Display page of the switcher.
 
 ### Notes from testing
 

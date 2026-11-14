@@ -10,21 +10,28 @@ except the one service.
 
 ## What it does
 
-- **LCD themes.** Nine designs for the 320x240 panel, from a calm gauge to a fire simulation. The
-  switcher in the Start menu shows live previews, picks one and exits again.
+- **LCD themes.** Twelve designs for the 320x240 panel, from a calm gauge and a clock to a fire
+  simulation and a system view with pump, fans, RAM and VRAM.
 - **LEDs follow the theme and the temperature.** Each theme brings its own colours; they shift as the
-  CPU or GPU heats up, and from 85 °C every theme turns to an alarm colour.
+  CPU or GPU heats up, and from the alarm temperature (85 °C unless you change it) every theme turns
+  to an alarm colour.
+- **Settings without a resident app.** The window in the Start menu picks themes with a live preview
+  of your real readings, sets brightness per LED group, the colour scale, the pump sensor, a night
+  window and a gaming automatic. Close it and nothing of it keeps running.
 - **Lightweight on purpose.** Sensors are read once per second, LED colours are smoothed, and a
   static look is only written when it changes. Nothing is ever saved to a device: remove the tool
   and your hardware falls back to its own settings once it loses power.
+
+![Switcher](docs/images/switcher.png)
 
 ## How it works
 
 ```mermaid
 flowchart LR
-    SW["Theme switcher<br/>UltraLightRgb.Switch"] -->|theme state file| L
+    SW["Switcher window<br/>UltraLightRgb.Switch"] -->|theme.txt, settings.json| L
+    L -->|status.json, only while the window is open| SW
     CFG["devices.json<br/>admin-only"] --> L
-    S["Sensors<br/>LibreHardwareMonitorLib, CPU and GPU only"] -->|once per second| L["Main loop<br/>UltraLightRgb.exe --service<br/>scheduled task as SYSTEM"]
+    S["Sensors<br/>CPU, GPU, board fans; RAM from Windows"] -->|once per second| L["Main loop<br/>UltraLightRgb.exe --service<br/>scheduled task as SYSTEM"]
     L --> R["Renderer<br/>320x240 frames"]
     R -->|HID| LCD["AIO LCD"]
     L --> O["LED outputs<br/>one thread each, smoothed colours"]
@@ -39,13 +46,16 @@ or the other outputs. Hardware that turns out to be unsupported is switched off 
 
 ## Footprint
 
-Measured on a Ryzen 7 9800X3D (16 threads) with LCD, mainboard and GPU lighting active, averaged
-over 30 seconds:
+Measured with version 0.2.0 on a Ryzen 7 9800X3D (16 threads) with LCD, mainboard and GPU
+lighting and the board fan sensors active, averaged over 30 seconds:
 
 | Theme | CPU (whole system) | Private memory |
 | :--- | :--- | :--- |
-| Classic (1 frame per second) | 0.15 % | 46 MB |
-| Inferno (fire simulation, about 12 frames per second) | 0.42 % | 44 MB |
+| Classic (1 frame per second) | 0.15 % | 58 MB |
+| System (1 frame per second) | 0.17 % | 69 MB |
+| Inferno (fire simulation, about 12 frames per second) | 0.43 % | 65 MB |
+
+The switcher window is not counted: it only runs while you have it open.
 
 ## Supported hardware
 
@@ -62,8 +72,9 @@ Details, test notes and how to add a device: [docs/devices.md](docs/devices.md).
 
 - Windows 10 or 11, x64
 - [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) (x64)
-- For AMD CPU temperatures: the [PawnIO](https://pawnio.eu) driver, which LibreHardwareMonitor uses.
-  Without it the CPU temperature stays empty and CPU-driven LEDs follow the GPU instead.
+- For AMD CPU temperatures and board fan speeds: the [PawnIO](https://pawnio.eu) driver, which
+  LibreHardwareMonitor uses. Without it the CPU temperature stays empty, CPU-driven LEDs follow the
+  GPU instead, and the System theme shows no pump or board fans.
 - Close the vendor's own LCD or RGB software: two programs writing to one device fight each other.
 
 ## Install
@@ -103,9 +114,31 @@ its place. Once the task runs again, the `.bak` folder is deleted. If any step f
 moves the previous version back, starts its task again and prints `ROLLBACK_OK`. Changes are listed
 in [CHANGELOG.md](CHANGELOG.md).
 
+## Settings
+
+Everything a user may change is set in the **Ultra Light RGB Control** window and stored in
+`C:\ProgramData\UltraLightRgb\state\settings.json`; the service picks up a change within a second.
+
+| Setting | Range | Meaning |
+| :--- | :--- | :--- |
+| Brightness | 0-100 % per group (cooler header, board, GPU, OpenRGB) | 0 switches a group off |
+| Colour scale | cold end 0-60 °C, hot end 50-110 °C, at least 20 °C apart | where the theme colours start and end |
+| Alarm | 70-100 °C | from here every theme shows the alarm colour |
+| Pump sensor | a board fan header, e.g. `Fan #7` | shown by the System theme, warning below 500 RPM |
+| Night window | from/to (may span midnight), brightness, optional theme | calmer at night |
+| Gaming automatic | GPU load 30-100 %, hold time 5-300 s, theme | switches while the graphics card is busy, ignores short spikes |
+
+Which theme is shown: a theme pinned with `--theme` wins, then the gaming automatic, then the night
+window, then your choice. The Status page of the window tells which one applies and why.
+
+Every user may write this file and the SYSTEM service reads it, so it is held to strict rules: at
+most 4 KB, no symbolic links, unknown keys or out-of-range values reject the whole file (the
+service then uses the defaults and says why on the Status page and in the log).
+
 ## Configuration
 
-Without a configuration file the verified hardware above is used. To change that, copy
+Which hardware the service drives is set by administrators. Without a configuration file the
+verified hardware above is used. To change that, copy
 `devices.example.json` from the install folder to `C:\ProgramData\UltraLightRgb\devices.json`
 (admin rights needed) and restart the task. Every entry is one LED output:
 
@@ -130,6 +163,7 @@ UltraLightRgb.exe --devices            supported hardware found on this machine 
 UltraLightRgb.exe --openrgb-list       controllers of the configured OpenRGB servers
 UltraLightRgb.exe --test-color FF0000  set every configured LED output to one colour
 UltraLightRgb.exe --sensors            temperature and load sensors
+UltraLightRgb.exe --sensors-all        every sensor incl. board fans, with update cost (run elevated)
 UltraLightRgb.exe --help               all options
 ```
 
@@ -140,8 +174,11 @@ Stop the scheduled task before running the tool by hand, or both will write to t
 - No commit, save or EEPROM command is ever sent; every change is lost once the device loses power.
   Some boards keep standby power on after shutdown, so a full power cut may be needed.
 - I2C writes to the GPU only happen on the exact card they were verified on.
-- The OpenRGB connection is limited to the local machine, and the configuration that the SYSTEM
-  service reads can only be changed by administrators.
+- The OpenRGB connection is limited to the local machine, and the hardware configuration that the
+  SYSTEM service reads can only be changed by administrators. The user settings are size-capped and
+  validated as a whole; the status file lives in a folder users can only read.
+- RAM load comes from Windows itself. LibreHardwareMonitor's memory group stays off, because it
+  would also read the RAM modules over SMBus.
 - This is hobby software that talks to hardware through undocumented protocols. It comes with no
   warranty (see the licence); use it at your own risk.
 
