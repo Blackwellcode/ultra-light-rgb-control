@@ -23,12 +23,21 @@ public sealed class AuraLed : ILed
     private readonly byte _header;
     private readonly bool _board;
     private readonly byte[] _report = new byte[ReportLen];
+    private Func<int> _headerLevel = () => 100, _boardLevel = () => 100;
 
     private AuraLed(HidStream stream, byte header, bool board)
     {
         _stream = stream;
         _header = header;
         _board = board;
+    }
+
+    /// <summary>Brightness in percent for the header chain and the board LEDs, asked on every write.</summary>
+    public AuraLed WithLevels(Func<int> header, Func<int> board)
+    {
+        _headerLevel = header;
+        _boardLevel = board;
+        return this;
     }
 
     public static AuraLed Open(byte header, bool board)
@@ -61,14 +70,15 @@ public sealed class AuraLed : ILed
 
     public void Set(LedLook look, float phase)
     {
+        var chain = look.Dim(_headerLevel());
         for (int done = 0; done < LedCount; done += LedsPerPacket)
         {
             int n = Math.Min(LedsPerPacket, LedCount - done);
-            DirectReport(_report, _header, done, n, done + n == LedCount, look, phase);
+            DirectReport(_report, _header, done, n, done + n == LedCount, chain, phase);
             _stream.Write(_report);
         }
         if (!_board) return;
-        DirectReport(_report, BoardDirectChannel, 0, BoardLeds, true, look, phase);
+        DirectReport(_report, BoardDirectChannel, 0, BoardLeds, true, look.Dim(_boardLevel()), phase);
         _stream.Write(_report);
     }
 

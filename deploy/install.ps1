@@ -112,7 +112,8 @@ try {
     # as a normal user, writes one word into state\theme.txt, which the service validates against a
     # fixed list. SIDs instead of names, because localized Windows renames the groups.
     if ($PSCmdlet.ShouldProcess($data, 'Create folders, set owner Administrators, lock down the ACL')) {
-        New-Item -ItemType Directory -Path (Join-Path $data 'state'), (Join-Path $data 'logs') -Force -Confirm:$false | Out-Null
+        # status: written by the service while the switcher is open, users may only read it
+        New-Item -ItemType Directory -Path (Join-Path $data 'state'), (Join-Path $data 'logs'), (Join-Path $data 'status') -Force -Confirm:$false | Out-Null
         Assert-NoReparsePoint $data
         icacls $data /setowner "*$SidAdmins" /T /C | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "icacls $data /setowner failed with exit code $LASTEXITCODE" }

@@ -107,6 +107,8 @@ public class AuraTests
     }
 }
 
+// theme colours depend on the process-wide palette, which PaletteTests changes
+[Collection("Palette")]
 public class ThemeTests
 {
     [Fact]

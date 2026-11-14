@@ -27,6 +27,15 @@ public readonly record struct LedLook(Color A, Color B, float Flow = 0)
         float wave = 0.5f + 0.5f * MathF.Sin((index - phase) * MathF.Tau / PatternLeds);
         return Pal.Mix(A, B, wave);
     }
+
+    /// <summary>The same look at <paramref name="percent"/> brightness; 0 is off.</summary>
+    public LedLook Dim(int percent)
+    {
+        if (percent >= 100) return this;
+        int p = Math.Max(0, percent);
+        static Color Scale(Color c, int p) => Color.FromArgb(c.R * p / 100, c.G * p / 100, c.B * p / 100);
+        return this with { A = Scale(A, p), B = Scale(B, p) };
+    }
 }
 
 /// <summary>One look of the LCD, including the colours the LEDs take on while it is active.</summary>
@@ -142,10 +151,20 @@ public sealed class Scene : IDisposable
 
 public static class Pal
 {
-    private const float ScaleMin = 20f, ScaleMax = 95f;
+    private sealed record Limits(float ScaleMin, float ScaleMax, float Alarm);
+
+    // swapped as a whole, so a reader on another thread never sees half an update
+    private static volatile Limits _limits = Of(UserSettings.Default);
+
+    private static Limits Of(UserSettings s) => new(s.ScaleMinC, s.ScaleMaxC, s.AlarmC);
+
+    /// <summary>Takes over colour scale and alarm threshold from the user settings.</summary>
+    public static void Configure(UserSettings s) => _limits = Of(s);
 
     /// <summary>From here on every theme, however calm, must show the problem.</summary>
-    public const float AlarmC = 85f;
+    public static float AlarmC => _limits.Alarm;
+
+    public static bool IsAlarm(float tempC) => tempC >= _limits.Alarm;
 
     public static readonly Color Alarm = Color.FromArgb(255, 40, 30);
 
@@ -158,7 +177,11 @@ public static class Pal
         (1f, Color.FromArgb(255, 60, 60)),
     ];
 
-    public static float Pos(float tempC) => Math.Clamp((tempC - ScaleMin) / (ScaleMax - ScaleMin), 0, 1);
+    public static float Pos(float tempC)
+    {
+        var l = _limits;
+        return Math.Clamp((tempC - l.ScaleMin) / (l.ScaleMax - l.ScaleMin), 0, 1);
+    }
 
     public static Color Gauge(float tempC) => Scale(Pos(tempC));
 

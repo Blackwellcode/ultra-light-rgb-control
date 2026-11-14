@@ -11,6 +11,9 @@ internal static class Program
     private const long OpenRgbMinSendMs = 1000; // some OpenRGB devices are slow to write
     private const int LcdRetryMs = 5000;
 
+    // replaced as a whole when settings.json changes; LED threads read it on every write
+    private static volatile UserSettings _settings = UserSettings.Default;
+
     private const string Usage = """
         Ultra Light RGB Control: CPU/GPU temperature on an LCD and on RGB lighting.
 
@@ -107,6 +110,8 @@ internal static class Program
 
         using var renderer = new Renderer(Scene.W, Scene.H, pinned ?? ReadTheme());
         var watch = new ThemeWatch();
+        var settingsWatch = new SettingsWatch();
+        var statusErrors = new LogThrottle(60_000);
         LcdDevice? lcd = null;
         byte[]? frame = null;
         string? lcdError = null;
@@ -121,6 +126,13 @@ internal static class Program
                 if (now >= nextSample)
                 {
                     nextSample = now + intervalMs;
+                    if (settingsWatch.Poll(out var settings))
+                    {
+                        _settings = settings;
+                        Pal.Configure(settings);
+                        // brightness is applied on write: a stable colour has to be sent again
+                        foreach (var o in outputs) o.Invalidate();
+                    }
                     var r = sensors.Read();
                     renderer.Sample(r);
                     foreach (var o in outputs)
@@ -133,6 +145,8 @@ internal static class Program
                         renderer.SetTheme(id);
                         Log.Write($"Theme: {id}");
                     }
+                    WriteStatus(renderer.ThemeId, pinned is null ? "user" : "pinned", r, lcd is not null, lcdError,
+                        outputs, settingsWatch.Problem, statusErrors);
                 }
 
                 if (useLcd && lcd is null && now >= nextLcdTry)
@@ -207,12 +221,82 @@ internal static class Program
     private static TempLed CreateOutput(OutputConfig o, int intervalMs) => o.Driver.ToLowerInvariant() switch
     {
         "aura" => new TempLed($"AURA header {o.Header}", o.SourceKind,
-            () => AuraLed.Open((byte)o.Header, o.Board), intervalMs, canFlow: true),
-        "msi-gpu" => new TempLed("MSI GPU", o.SourceKind, MsiGpuLed.Open, intervalMs, GpuMinSendMs),
+            () => AuraLed.Open((byte)o.Header, o.Board).WithLevels(() => _settings.Brightness.Aura, () => _settings.Brightness.Board),
+            intervalMs, canFlow: true),
+        "msi-gpu" => new TempLed("MSI GPU", o.SourceKind,
+            () => new DimmedLed(MsiGpuLed.Open(), () => _settings.Brightness.Gpu), intervalMs, GpuMinSendMs),
         "openrgb" => new TempLed($"OpenRGB \"{o.Match}\"", o.SourceKind,
-            () => OpenRgbLed.Open(o), intervalMs, o.Animate ? 0 : OpenRgbMinSendMs, canFlow: o.Animate),
+            () => new DimmedLed(OpenRgbLed.Open(o), () => _settings.Brightness.OpenRgb),
+            intervalMs, o.Animate ? 0 : OpenRgbMinSendMs, canFlow: o.Animate),
         _ => throw new ArgumentException($"unknown driver {o.Driver}"), // AppConfig.Parse filters these out
     };
+
+    private static void WriteStatus(string theme, string reason, Readings r, bool lcd, string? lcdError,
+        List<TempLed> outputs, string? settingsProblem, LogThrottle errors)
+    {
+        var status = new ServiceStatus
+        {
+            TimeUtc = DateTime.UtcNow,
+            Theme = theme,
+            ThemeReason = reason,
+            CpuTemp = r.CpuTemp,
+            CpuLoad = r.CpuLoad,
+            GpuTemp = r.GpuTemp,
+            GpuLoad = r.GpuLoad,
+            Lcd = lcd,
+            LcdError = lcd ? null : lcdError,
+            Outputs = [.. outputs.Select(o => new OutputStatus(o.Name, o.State.ToString(), o.Error))],
+            SettingsProblem = settingsProblem,
+        };
+        try
+        {
+            if (StatusWriter.Default.WriteIfWatched(status, DateTime.UtcNow)) errors.Reset();
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            string msg = $"Status file: {e.GetType().Name}: {e.Message}";
+            if (errors.ShouldLog(msg, Environment.TickCount64)) Log.Write(msg);
+        }
+    }
+
+    /// <summary>Notices a changed or deleted settings.json through its timestamp, like <see cref="ThemeWatch"/>.</summary>
+    private sealed class SettingsWatch
+    {
+        private readonly LogThrottle _errors = new(60_000);
+        private DateTime _stamp = DateTime.MinValue;
+        private bool _first = true;
+
+        public string? Problem { get; private set; }
+
+        public bool Poll(out UserSettings settings)
+        {
+            settings = _settings;
+            try
+            {
+                var info = new FileInfo(UserSettings.DefaultPath);
+                // a deleted file counts as a change back to the defaults
+                var stamp = info.Exists ? info.LastWriteTimeUtc : DateTime.MinValue;
+                if (stamp == _stamp && !_first) return false;
+                bool first = _first;
+                _first = false;
+                _stamp = stamp;
+                settings = UserSettings.Load(UserSettings.DefaultPath, out var problem);
+                if (problem is not null && problem != Problem) Log.Write($"Settings rejected, defaults in use: {problem}");
+                else if (problem is null && info.Exists) Log.Write("Settings loaded");
+                else if (problem is null && !first) Log.Write("Settings file removed, defaults in use");
+                Problem = problem;
+                _errors.Reset();
+                return true;
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                // the switcher may be replacing the file right now: the next poll picks it up
+                string msg = $"Settings file: {e.GetType().Name}: {e.Message}";
+                if (_errors.ShouldLog(msg, Environment.TickCount64)) Log.Write(msg);
+                return false;
+            }
+        }
+    }
 
     private static ILed OpenOutput(OutputConfig o) => o.Driver.ToLowerInvariant() switch
     {

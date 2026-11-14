@@ -7,6 +7,17 @@ public interface ILed : IDisposable
     void Set(LedLook look, float phase);
 }
 
+/// <summary>Any single-brightness output at the brightness the user picked, asked on every write.</summary>
+public sealed class DimmedLed(ILed inner, Func<int> level) : ILed
+{
+    public void Set(LedLook look, float phase) => inner.Set(look.Dim(level()), phase);
+
+    public void Dispose() => inner.Dispose();
+}
+
+/// <summary>What an output is doing, for the switcher's status page.</summary>
+public enum OutputState { Waiting, Ok, Retrying, Disabled }
+
 /// <summary>
 /// Lets one LED output follow a temperature with the colours of the active theme. All device
 /// access runs on its own thread: a slow or failing LED must never touch the LCD loop.
@@ -29,8 +40,21 @@ public sealed class TempLed : IDisposable
     private LedLook? _wanted;
     private float _load;
     private float? _smoothed;
+    private volatile bool _resend;
+    private volatile OutputState _state = OutputState.Waiting;
+    private volatile string? _error;
 
     public LedSource Source { get; }
+
+    public string Name => _name;
+
+    public OutputState State => _state;
+
+    /// <summary>Last error message while retrying or after being disabled, otherwise null.</summary>
+    public string? Error => _error;
+
+    /// <summary>Sends the current look again at the next cycle, e.g. after a brightness change.</summary>
+    public void Invalidate() => _resend = true;
 
     public TempLed(string name, LedSource source, Func<ILed> open, int intervalMs, long minSendMs = 0, bool canFlow = false)
     {
@@ -77,6 +101,12 @@ public sealed class TempLed : IDisposable
             }
 
             long now = Environment.TickCount64;
+            if (_resend)
+            {
+                _resend = false;
+                sent = null;
+                nextSend = 0;
+            }
             float flow = _canFlow && wanted is { } w ? w.Flow : 0;
             // idle creeps along, full load runs at double the theme's speed
             phase += flow * (0.4f + load * 0.016f) * (now - last) / 1000f;
@@ -94,6 +124,8 @@ public sealed class TempLed : IDisposable
                         Log.Write($"{_name}: working again");
                         lastError = null;
                     }
+                    _state = OutputState.Ok;
+                    _error = null;
                     sent = look;
                     nextSend = now + _minSendMs;
                     nextRefresh = now + RefreshMs;
@@ -102,6 +134,8 @@ public sealed class TempLed : IDisposable
                 {
                     // wrong or unknown hardware: retrying cannot help, so this output stops for good
                     Log.Write($"{_name}: disabled, {e.Message}");
+                    _error = e.Message;
+                    _state = OutputState.Disabled;
                     break;
                 }
                 catch (Exception e) when (e is IOException or TimeoutException or UnauthorizedAccessException or InvalidDataException)
@@ -110,6 +144,8 @@ public sealed class TempLed : IDisposable
                     string msg = $"{e.GetType().Name}: {e.Message}";
                     if (msg != lastError) Log.Write($"{_name}: {msg} (retry every {RetryMs / 1000} s)");
                     lastError = msg;
+                    _error = msg;
+                    _state = OutputState.Retrying;
                     led?.Dispose();
                     led = null;
                     sent = null;

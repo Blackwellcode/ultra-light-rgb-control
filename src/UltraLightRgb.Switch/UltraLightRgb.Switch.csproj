@@ -24,6 +24,9 @@
   <ItemGroup>
     <Compile Include="..\UltraLightRgb\Themes\*.cs" Link="Themes\%(Filename)%(Extension)" />
     <Compile Include="..\UltraLightRgb\Renderer.cs" Link="Renderer.cs" />
+    <!-- the switcher writes the settings and reads the service status -->
+    <Compile Include="..\UltraLightRgb\UserSettings.cs" Link="UserSettings.cs" />
+    <Compile Include="..\UltraLightRgb\ServiceStatus.cs" Link="ServiceStatus.cs" />
   </ItemGroup>
 
 </Project>
