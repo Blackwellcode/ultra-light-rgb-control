@@ -14,6 +14,11 @@ internal static class Program
     // replaced as a whole when settings.json changes; LED threads read it on every write
     private static volatile UserSettings _settings = UserSettings.Default;
 
+    // night window and load automatic; its Brightness() is read by the LED threads
+    private static readonly ModeResolver Modes = new();
+
+    private static int Level(Func<LedBrightness, int> group) => Modes.Brightness(group(_settings.Brightness));
+
     private const string Usage = """
         Ultra Light RGB Control: CPU/GPU temperature on an LCD and on RGB lighting.
 
@@ -108,7 +113,9 @@ internal static class Program
         using var stop = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; stop.Cancel(); };
 
-        using var renderer = new Renderer(Scene.W, Scene.H, pinned ?? ReadTheme());
+        string userTheme = ReadTheme();
+        bool night = false;
+        using var renderer = new Renderer(Scene.W, Scene.H, pinned ?? userTheme);
         var watch = new ThemeWatch();
         var settingsWatch = new SettingsWatch();
         var statusErrors = new LogThrottle(60_000);
@@ -140,12 +147,20 @@ internal static class Program
                         if (o.Source == LedSource.Gpu) o.Update(r.GpuTemp, r.GpuLoad, t => renderer.Led(LedSource.Gpu, t));
                         else o.Update(r.CpuTemp ?? r.GpuTemp, r.CpuLoad, t => renderer.Led(LedSource.Cpu, t));
                     }
-                    if (pinned is null && watch.Poll(out var id) && id != renderer.ThemeId)
+                    if (watch.Poll(out var chosen)) userTheme = chosen;
+                    var mode = Modes.Resolve(userTheme, pinned, _settings, DateTime.Now, now, r.GpuLoad);
+                    if (mode.Theme != renderer.ThemeId)
                     {
-                        renderer.SetTheme(id);
-                        Log.Write($"Theme: {id}");
+                        renderer.SetTheme(mode.Theme);
+                        Log.Write($"Theme: {mode.Theme} ({mode.Reason})");
                     }
-                    WriteStatus(renderer.ThemeId, pinned is null ? "user" : "pinned", r, lcd is not null, lcdError,
+                    if (mode.Night != night)
+                    {
+                        night = mode.Night;
+                        Log.Write($"Night window {(night ? "open" : "closed")}");
+                        foreach (var o in outputs) o.Invalidate();
+                    }
+                    WriteStatus(renderer.ThemeId, mode.Reason, r, lcd is not null, lcdError,
                         outputs, settingsWatch.Problem, statusErrors);
                 }
 
@@ -221,12 +236,12 @@ internal static class Program
     private static TempLed CreateOutput(OutputConfig o, int intervalMs) => o.Driver.ToLowerInvariant() switch
     {
         "aura" => new TempLed($"AURA header {o.Header}", o.SourceKind,
-            () => AuraLed.Open((byte)o.Header, o.Board).WithLevels(() => _settings.Brightness.Aura, () => _settings.Brightness.Board),
+            () => AuraLed.Open((byte)o.Header, o.Board).WithLevels(() => Level(b => b.Aura), () => Level(b => b.Board)),
             intervalMs, canFlow: true),
         "msi-gpu" => new TempLed("MSI GPU", o.SourceKind,
-            () => new DimmedLed(MsiGpuLed.Open(), () => _settings.Brightness.Gpu), intervalMs, GpuMinSendMs),
+            () => new DimmedLed(MsiGpuLed.Open(), () => Level(b => b.Gpu)), intervalMs, GpuMinSendMs),
         "openrgb" => new TempLed($"OpenRGB \"{o.Match}\"", o.SourceKind,
-            () => new DimmedLed(OpenRgbLed.Open(o), () => _settings.Brightness.OpenRgb),
+            () => new DimmedLed(OpenRgbLed.Open(o), () => Level(b => b.OpenRgb)),
             intervalMs, o.Animate ? 0 : OpenRgbMinSendMs, canFlow: o.Animate),
         _ => throw new ArgumentException($"unknown driver {o.Driver}"), // AppConfig.Parse filters these out
     };
