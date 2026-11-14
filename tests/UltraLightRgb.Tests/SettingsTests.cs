@@ -71,6 +71,7 @@ public sealed class SettingsTests : IDisposable
             ScaleMaxC = 90,
             Night = new NightSettings { Enabled = true, From = "22:30", To = "06:45", Brightness = 5, Theme = "nachtwache" },
             Auto = new AutoSettings { Enabled = true, GpuLoad = 70, HoldSeconds = 20, Theme = "inferno" },
+            PumpFan = "Fan #7",
         };
         string path = Path.Combine(_dir, "settings.json");
         s.Save(path);
@@ -106,6 +107,8 @@ public sealed class SettingsTests : IDisposable
     [InlineData("""{ "auto": { "holdSeconds": 1 } }""", "auto.holdSeconds")]
     [InlineData("""{ "auto": { "theme": "" } }""", "auto.theme")]
     [InlineData("""{ "night": null }""", "night")]
+    [InlineData("""{ "pumpFan": "Fan <script>" }""", "pumpFan")]
+    [InlineData("""{ "pumpFan": "Fan #77777777777777777777777777777777777777777" }""", "pumpFan")]
     public void Out_of_range_value_rejects_the_file_and_names_the_key(string json, string key)
     {
         var s = Load(Write(json), out var problem);

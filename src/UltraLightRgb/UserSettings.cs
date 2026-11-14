@@ -73,7 +73,12 @@ public sealed record UserSettings
 
     public AutoSettings Auto { get; init; } = new();
 
+    /// <summary>Name of the board fan header the pump is on, as the sensors list it ("Fan #7"); empty: none.</summary>
+    public string PumpFan { get; init; } = "";
+
     public static UserSettings Default { get; } = new();
+
+    private static readonly System.Text.RegularExpressions.Regex SensorName = new(@"^[A-Za-z0-9 #._()-]{0,40}$");
 
     public static string DefaultPath => Path.Combine(ThemeCatalog.DataDir, "state", "settings.json");
 
@@ -167,6 +172,7 @@ public sealed record UserSettings
             ?? (Night.Theme is "" || (Night.Theme is not null && ThemeCatalog.Exists(Night.Theme)) ? null : $"night.theme \"{Night.Theme}\" is unknown")
             ?? Range("auto.gpuLoad", Auto.GpuLoad, 30, 100)
             ?? Range("auto.holdSeconds", Auto.HoldSeconds, 5, 300)
-            ?? (Auto.Theme is not null && ThemeCatalog.Exists(Auto.Theme) ? null : $"auto.theme \"{Auto.Theme}\" is unknown");
+            ?? (Auto.Theme is not null && ThemeCatalog.Exists(Auto.Theme) ? null : $"auto.theme \"{Auto.Theme}\" is unknown")
+            ?? (PumpFan is not null && SensorName.IsMatch(PumpFan) ? null : "pumpFan must be a sensor name of up to 40 letters, digits, spaces or # . _ ( ) -");
     }
 }

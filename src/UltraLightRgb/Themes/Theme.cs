@@ -5,7 +5,22 @@ using System.Drawing.Text;
 
 namespace UltraLightRgb;
 
-public readonly record struct Readings(float? CpuTemp, float? CpuLoad, float? GpuTemp, float? GpuLoad);
+public readonly record struct Readings(float? CpuTemp, float? CpuLoad, float? GpuTemp, float? GpuLoad)
+{
+    public float? RamLoad { get; init; }
+    public float? RamUsedGb { get; init; }
+    public float? RamTotalGb { get; init; }
+    public float? VramUsedMb { get; init; }
+    public float? VramTotalMb { get; init; }
+
+    /// <summary>Board fans first, then GPU fans; headers without a fan read 0.</summary>
+    public FanReading[]? Fans { get; init; }
+
+    /// <summary>The board fan the user marked as pump, if any.</summary>
+    public float? PumpRpm { get; init; }
+}
+
+public sealed record FanReading(string Name, float Rpm);
 
 /// <summary>Which reading an LED output follows.</summary>
 public enum LedSource { Cpu, Gpu }

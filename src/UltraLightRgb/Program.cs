@@ -32,6 +32,8 @@ internal static class Program
           --openrgb-list         list the controllers of the configured OpenRGB servers
           --test-color RRGGBB    set every configured LED output to one colour and exit
           --sensors              print the temperature and load sensors
+          --sensors-all          print every sensor (board fans and pump, memory) with update cost;
+                                 run elevated, the board sensors need the PawnIO driver
           --once [--preview f]   draw one frame on the LCD, optionally save it as PNG
           --preview-all <dir>    render every theme with made-up readings as PNG
           --bench                measure every theme on the real LCD
@@ -87,6 +89,12 @@ internal static class Program
         using var self = Process.GetCurrentProcess();
         self.PriorityClass = ProcessPriorityClass.BelowNormal;
 
+        if (args.Contains("--sensors-all"))
+        {
+            Sensors.DumpAll(Console.Out);
+            return 0;
+        }
+
         using var sensors = new Sensors();
         if (args.Contains("--sensors"))
         {
@@ -140,7 +148,7 @@ internal static class Program
                         // brightness is applied on write: a stable colour has to be sent again
                         foreach (var o in outputs) o.Invalidate();
                     }
-                    var r = sensors.Read();
+                    var r = sensors.Read(_settings.PumpFan);
                     renderer.Sample(r);
                     foreach (var o in outputs)
                     {
@@ -258,6 +266,11 @@ internal static class Program
             CpuLoad = r.CpuLoad,
             GpuTemp = r.GpuTemp,
             GpuLoad = r.GpuLoad,
+            RamLoad = r.RamLoad,
+            VramUsedMb = r.VramUsedMb,
+            VramTotalMb = r.VramTotalMb,
+            PumpRpm = r.PumpRpm,
+            Fans = r.Fans ?? [],
             Lcd = lcd,
             LcdError = lcd ? null : lcdError,
             Outputs = [.. outputs.Select(o => new OutputStatus(o.Name, o.State.ToString(), o.Error))],

@@ -22,6 +22,13 @@ public sealed record ServiceStatus
     public float? CpuLoad { get; init; }
     public float? GpuTemp { get; init; }
     public float? GpuLoad { get; init; }
+    public float? RamLoad { get; init; }
+    public float? VramUsedMb { get; init; }
+    public float? VramTotalMb { get; init; }
+    public float? PumpRpm { get; init; }
+
+    /// <summary>Every fan with its speed, so the switcher can offer them as pump.</summary>
+    public FanReading[] Fans { get; init; } = [];
 
     public bool Lcd { get; init; }
 
