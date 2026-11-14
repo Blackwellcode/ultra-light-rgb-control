@@ -27,6 +27,7 @@
     <!-- the switcher writes the settings and reads the service status -->
     <Compile Include="..\UltraLightRgb\UserSettings.cs" Link="UserSettings.cs" />
     <Compile Include="..\UltraLightRgb\ServiceStatus.cs" Link="ServiceStatus.cs" />
+    <Compile Include="..\UltraLightRgb\SwitcherModel.cs" Link="SwitcherModel.cs" />
   </ItemGroup>
 
 </Project>

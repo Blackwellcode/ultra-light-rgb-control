@@ -279,12 +279,14 @@ public static class ThemeCatalog
     /// <summary>The only link between switcher and service: one word in a file the service polls.</summary>
     public static string StatePath { get; } = Path.Combine(DataDir, "state", "theme.txt");
 
-    public static void WriteState(string id)
+    public static void WriteState(string id) => WriteState(StatePath, id);
+
+    internal static void WriteState(string path, string id)
     {
         // replace in one step, so the service never reads half a file
-        string temp = StatePath + ".tmp";
+        string temp = path + ".tmp";
         File.WriteAllText(temp, id);
-        File.Move(temp, StatePath, overwrite: true);
+        File.Move(temp, path, overwrite: true);
     }
 
     /// <summary>Default when nothing is saved; anything unknown counts as nothing saved.</summary>
