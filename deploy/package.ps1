@@ -28,7 +28,8 @@ Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip
 $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
 # published next to the zip; same format as sha256sum: "<hash>  <file name>"
 $sums = Join-Path $root 'dist\SHA256SUMS'
-Set-Content -LiteralPath $sums -Value ('{0}  {1}' -f $hash, (Split-Path $zip -Leaf)) -Encoding ASCII
+# LF line ending: with CRLF, "sha256sum -c" on Linux or Git Bash reads the CR as part of the file name
+[IO.File]::WriteAllText($sums, ('{0}  {1}' -f $hash, (Split-Path $zip -Leaf)) + "`n", (New-Object Text.ASCIIEncoding))
 "zip=$zip"
 "bytes=$((Get-Item $zip).Length)"
 "sha256=$hash"

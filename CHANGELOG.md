@@ -4,6 +4,9 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+### Fixed
+- `SHA256SUMS` is written with an LF line ending, so `sha256sum -c SHA256SUMS` works on Linux and in Git Bash. The 0.2.0 file has CRLF; compare the hash by hand there.
+
 ## [0.2.0] - 2026-11-14
 
 ### Added
